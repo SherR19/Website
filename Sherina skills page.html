@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sherina Rajasekhar | Capabilities Hive</title>
+    <!-- Chosen Palette: Custom -->
+    <!-- Application Structure Plan: The application uses a single-page layout. The layout is a single, large, staggered honeycomb grid for all capabilities. The tiles are grouped by category color and are static in both modes. -->
+    <!-- Visualization & Content Choices: The core interactive beehive is presented as a single large visual unit. The description panel in game mode is scrollable and its height is dynamically matched to the hive's height via JavaScript. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-name: #7f1b18;
+            --color-button-primary-bg: #4c1410;
+            --color-button-primary-text: #ffffff;
+            --color-button-secondary-bg: #ffffff;
+            --color-button-secondary-text: #85211c;
+            --color-button-reset-bg: #85211c;
+            --color-button-reset-text: #ffffff;
+
+            --color-cat-1: #fffad6; /* innovation */
+            --color-cat-1-text: #725a03;
+            --color-cat-2: #d1f9f0; /* tech */
+            --color-cat-2-text: #046c4e;
+            --color-cat-3: #d5dafe; /* business */
+            --color-cat-3-text: #4338ca;
+            --color-cat-4: #fccdf1; /* leadership */
+            --color-cat-4-text: #9d174d;
+
+            --color-grey-tile-bg: #d1d5db; /* gray-300 */
+            --color-grey-tile-text: #4b5563; /* gray-600 */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #ffffff;
+        }
+
+        .hexagon {
+            position: relative;
+            width: 160px;
+            height: 184.75px;
+            margin: 0.5rem;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            transition: transform 0.2s ease-in-out, background-color 0.5s ease, width 0.3s ease, height 0.3s ease;
+            flex-shrink: 0; /* Prevent hexagons from shrinking */
+        }
+
+        .hexagon-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            backface-visibility: hidden;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        
+        .hexagon-front, .hexagon-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+            border-radius: 10px; /* To make sure the background color doesn't bleed out of the content area */
+        }
+        
+        .hexagon-front {
+             font-size: 0.75rem;
+        }
+
+        .hexagon-back {
+            transform: rotateY(180deg);
+            font-size: 0.75rem;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .hexagon.is-flipped .hexagon-content {
+            transform: translate(-50%, -50%) rotateY(180deg);
+        }
+
+        .hexagon:hover {
+            transform: scale(1.05);
+        }
+        
+        .hive-container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .description-card {
+            cursor: grab;
+        }
+        .description-card:active {
+            cursor: grabbing;
+        }
+
+        .game-mode-hex {
+            background-color: var(--color-grey-tile-bg) !important;
+            color: var(--color-grey-tile-text) !important;
+        }
+         .game-mode-hex .hexagon-back {
+            background-color: var(--color-grey-tile-bg) !important;
+            color: var(--color-grey-tile-text) !important;
+        }
+
+        /* Drag feedback */
+        .drag-over {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+        .correct-drop {
+            animation: correct 0.7s ease-out;
+        }
+        .incorrect-drop {
+            animation: incorrect 0.7s ease-out;
+        }
+        @keyframes correct {
+            0% { transform: scale(1.05); }
+            50% { transform: scale(1.15); } 
+            100% { transform: scale(1); }
+        }
+        @keyframes incorrect {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 767px) {
+            .hexagon {
+                width: 120px;
+                height: 138.56px;
+            }
+             .hexagon-front, .hexagon-back {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8 min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold" style="color: var(--color-name);">Sherina Rajasekhar's</h1>
+            <h2 class="text-xl sm:text-2xl" style="color: var(--color-button-reset-bg);">Capabilities Hive</h2>
+        </header>
+
+        <!-- Controls -->
+        <div id="controls" class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6 p-4 bg-gray-100 rounded-xl shadow-sm">
+            <div class="flex gap-2">
+                <button id="readModeBtn" class="px-4 py-2 rounded-lg font-semibold text-white shadow-md transition-all duration-300" style="background-color: var(--color-button-primary-bg);">Flip to Read</button>
+                <button id="gameModeBtn" class="px-4 py-2 rounded-lg font-semibold shadow-md transition-all duration-300" style="background-color: var(--color-button-secondary-bg); color: var(--color-button-secondary-text);">Play Game</button>
+            </div>
+            <div id="gameState" class="hidden flex-col sm:flex-row items-center gap-4">
+                 <div class="text-lg font-semibold bg-white rounded-lg px-4 py-2 shadow-inner">Score: <span id="score">0</span></div>
+                 <button id="resetBtn" class="px-4 py-2 rounded-lg font-semibold text-white shadow-md transition-all" style="background-color: var(--color-button-reset-bg);">Reset Game</button>
+            </div>
+        </div>
+        
+        <!-- Custom Message Box -->
+        <div id="messageBox" class="text-center font-semibold text-lg md:text-xl mb-4 h-8 transition-opacity duration-300 opacity-0" style="color: var(--color-name);">
+             Match the descriptions to the skills!
+        </div>
+
+        <!-- Legend -->
+        <div id="legend" class="flex flex-wrap justify-center items-center gap-x-4 md:gap-x-6 gap-y-2 mb-4 text-sm">
+            <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full" style="background-color: var(--color-cat-2);"></div><span class="font-semibold" style="color: var(--color-cat-2-text);">Technical & Core Expertise</span></div>
+            <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full" style="background-color: var(--color-cat-3);"></div><span class="font-semibold" style="color: var(--color-cat-3-text);">Business & Strategy</span></div>
+            <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full" style="background-color: var(--color-cat-4);"></div><span class="font-semibold" style="color: var(--color-cat-4-text);">Leadership & Communication</span></div>
+            <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full" style="background-color: var(--color-cat-1);"></div><span class="font-semibold" style="color: var(--color-cat-1-text);">Innovation & Design</span></div>
+        </div>
+
+        <!-- Main Content -->
+        <main id="main-content" class="flex-grow flex flex-col md:flex-row gap-8">
+             <!-- Descriptions Panel (Game Mode Only) -->
+            <aside id="descriptions-panel" class="bg-gray-100/80 p-4 rounded-2xl shadow-inner hidden w-full md:w-1/4 flex-col">
+                <h3 class="text-xl font-bold text-center mb-4 flex-shrink-0" style="color: var(--color-name);">Match These Descriptions:</h3>
+                <div id="descriptions-container" class="flex flex-col gap-3 overflow-y-auto flex-grow min-h-0">
+                    <!-- Draggable description cards will be injected here -->
+                </div>
+            </aside>
+
+            <!-- Beehive Panel -->
+            <section id="hive-panel" class="w-full">
+                <div id="hive-container" class="hive-container">
+                    <!-- Hexagon tiles will be injected here by JavaScript -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Capabilities are pre-grouped by category and remain in this order for all modes.
+            const capabilities = [
+                // Technology
+                { id: 2, category: 'Technology', keyword: 'Workflow Optimization & Automation Tools', description: 'Streamlining processes and automating operational tasks using tools like shell scripts, chatbots & airtable', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 4, category: 'Technology', keyword: 'Product Enablement', description: 'Supporting the successful rollout and adoption of products, including documentation and internal workflows.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 5, category: 'Technology', keyword: 'Demo Design & Technical Enablement', description: 'Creating compelling product demonstrations and enabling teams with technical knowledge.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 7, category: 'Technology', keyword: 'SaaS-based AI Solutions Integration', description: 'Integrating scalable AI software solutions for improved efficiency in various industries.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 8, category: 'Technology', keyword: 'Omnichannel Platforms', description: 'Mapping use cases to comprehensive customer interaction platforms that span multiple channels.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 9, category: 'Technology', keyword: 'Martech', description: 'Utilizing marketing technology tools for sales and outreach initiatives.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                { id: 1, category: 'Technology', keyword: 'Advanced DB2 & SQL Performance Tuning', description: 'Expertise in optimizing database performance and enhancing SQL queries for efficiency and speed.', color: 'bg-[--color-cat-2]', textColor: 'text-[--color-cat-2-text]' },
+                
+                // Business
+                { id: 10, category: 'Business', keyword: 'Innovation Consulting & Digital Advisory', description: 'Providing strategic guidance on innovation and digital transformation.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 12, category: 'Business', keyword: 'Solution Engineering & Consultative Selling', description: 'Designing and presenting tailored solutions, engaging in a consultative sales approach with clients.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 13, category: 'Business', keyword: 'Proposal Structuring & RFP Collaboration', description: 'Managing the creation of proposals and collaborating on Request for Proposal (RFP) bids.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 14, category: 'Business', keyword: 'Go-to-Market (GTM) Strategy', description: 'Supporting the rollout of new products and services to the market.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 15, 'category': 'Business', keyword: 'Sales Cycle Acceleration', description: 'Implementing strategies to significantly shorten the time from lead to closed deal.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 18, category: 'Business', keyword: 'KPI Insights & Value Storytelling', description: 'Using key performance indicator data to effectively communicate product value.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+                { id: 19, category: 'Business', keyword: 'Strategic Partnerships', description: 'Developing collaborations with external entities to expand reach and services.', color: 'bg-[--color-cat-3]', textColor: 'text-[--color-cat-3-text]' },
+
+                // Leadership
+                { id: 20, category: 'Leadership', keyword: 'Stakeholder Communication & Vision Translation', description: 'Effectively communicating and translating strategic visions to various stakeholders.', color: 'bg-[--color-cat-4]', textColor: 'text-[--color-cat-4-text]' },
+                { id: 21, category: 'Leadership', keyword: 'Team Leadership & Management', description: 'Guiding and overseeing teams to achieve project goals and operational excellence.', color: 'bg-[--color-cat-4]', textColor: 'text-[--color-cat-4-text]' },
+                { id: 22, category: 'Leadership', keyword: 'Cross-functional Collaboration', description: 'Working effectively with diverse teams across different departments.', color: 'bg-[--color-cat-4]', textColor: 'text-[--color-cat-4-text]' },
+                { id: 23, category: 'Leadership', keyword: 'Training & Onboarding', description: 'Developing and delivering training programs for new team members and partners.', color: 'bg-[--color-cat-4]', textColor: 'text-[--color-cat-4-text]' },
+                { id: 24, category: 'Leadership', keyword: 'Problem Solving & Operational Alignment', description: 'Diving deep into complex challenges to align operations and drive business impact.', color: 'bg-[--color-cat-4]', textColor: 'text-[--color-cat-4-text]' },
+
+                // Innovation
+                { id: 26, category: 'Innovation', keyword: 'Design Thinking & Service Blueprinting', description: 'Applying human-centered design methodologies to create innovative solutions and map service experiences.', color: 'bg-[--color-cat-1]', textColor: 'text-[--color-cat-1-text]' },
+                { id: 27, category: 'Innovation', keyword: 'Sustainable Innovation', description: 'Focusing on developing innovations that are environmentally and socially responsible.', color: 'bg-[--color-cat-1]', textColor: 'text-[--color-cat-1-text]' },
+                { id: 28, category: 'Innovation', keyword: 'Innovation Evaluation Framework', description: 'Developing structured approaches to assess the impact and success of innovations.', color: 'bg-[--color-cat-1]', textColor: 'text-[--color-cat-1-text]' },
+                { id: 29, category: 'Innovation', keyword: 'Lean & Agile Startup Methodologies', description: 'Familiarity do,fail,learn fast principle for new businesses & project management.', color: 'bg-[--color-cat-1]', textColor: 'text-[--color-cat-1-text]' },
+                { id: 31, category: 'Innovation', keyword: 'Business Model Innovation', description: 'Applying innovative approaches to business models for scaling purposes.', color: 'bg-[--color-cat-1]', textColor: 'text-[--color-cat-1-text]' },
+            ];
+
+            const mainContent = document.getElementById('main-content');
+            const hivePanel = document.getElementById('hive-panel');
+            const hiveContainer = document.getElementById('hive-container');
+            const descriptionsContainer = document.getElementById('descriptions-container');
+            const descriptionsPanel = document.getElementById('descriptions-panel');
+            const readModeBtn = document.getElementById('readModeBtn');
+            const gameModeBtn = document.getElementById('gameModeBtn');
+            const gameStateDiv = document.getElementById('gameState');
+            const resetBtn = document.getElementById('resetBtn');
+            const scoreSpan = document.getElementById('score');
+            const messageBox = document.getElementById('messageBox');
+            
+            let currentMode = 'read';
+            let score = 0;
+            let matchedCount = 0;
+
+            function init() {
+                setMode('read');
+                readModeBtn.addEventListener('click', () => setMode('read'));
+                gameModeBtn.addEventListener('click', () => setMode('game'));
+                resetBtn.addEventListener('click', resetGame);
+                window.addEventListener('resize', () => {
+                    setMode(currentMode);
+                });
+            }
+
+            function generateHive(isGameMode = false) {
+                hiveContainer.innerHTML = '';
+                const gridContainer = document.createElement('div');
+                gridContainer.className = 'flex flex-col items-center py-4 sm:py-12';
+
+                const isMobile = window.innerWidth < 768;
+                const itemsPerRow = isMobile ? 4 : 6;
+                const staggeredItemsPerRow = isMobile ? 3 : 5;
+                const negativeMargin = isMobile ? '-34.64px' : '-46px';
+
+                const allCaps = [...capabilities];
+                let isStaggeredRow = false;
+
+                while (allCaps.length > 0) {
+                    const rowWrapper = document.createElement('div');
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'flex justify-center';
+
+                    const itemsThisRow = isStaggeredRow ? staggeredItemsPerRow : itemsPerRow;
+                    const rowItems = allCaps.splice(0, itemsThisRow);
+                    
+                    if (isStaggeredRow && rowItems.length > 0) {
+                        rowWrapper.style.marginTop = negativeMargin;
+                        rowWrapper.style.marginBottom = negativeMargin;
+                    }
+
+                    rowItems.forEach(cap => {
+                        const hexagon = document.createElement('div');
+                        const tileColorClass = isGameMode ? 'game-mode-hex' : `${cap.color} ${cap.textColor}`;
+                        hexagon.className = `hexagon ${tileColorClass} font-semibold`;
+                        hexagon.dataset.id = cap.id;
+
+                        if (isGameMode) {
+                            hexagon.dataset.color = cap.color;
+                            hexagon.dataset.textColor = cap.textColor;
+                        }
+                        
+                        hexagon.innerHTML = `
+                            <div class="hexagon-content">
+                                <div class="hexagon-front p-2 flex items-center justify-center">${cap.keyword}</div>
+                                <div class="hexagon-back ${isGameMode ? '' : cap.color + ' ' + cap.textColor} p-2">${cap.description}</div>
+                            </div>
+                        `;
+                        rowDiv.appendChild(hexagon);
+                    });
+                    
+                    rowWrapper.appendChild(rowDiv);
+                    gridContainer.appendChild(rowWrapper);
+                    isStaggeredRow = !isStaggeredRow;
+                }
+                hiveContainer.appendChild(gridContainer);
+            }
+            
+            function adjustDescriptionPanelHeight() {
+                // For mobile, set a max-height with CSS for vertical scrolling
+                if (window.innerWidth < 768) {
+                    descriptionsPanel.style.height = 'auto'; // Reset height
+                    descriptionsContainer.classList.add('max-h-48'); // Set max height for scroll
+                    return;
+                }
+                // For desktop, match the hive height
+                requestAnimationFrame(() => {
+                    descriptionsContainer.classList.remove('max-h-48'); // Remove mobile scroll constraint
+                    const hiveEl = document.getElementById('hive-container');
+                    if (hiveEl && currentMode === 'game') {
+                        const hiveHeight = hiveEl.offsetHeight;
+                        descriptionsPanel.style.height = `${hiveHeight}px`;
+                    }
+                });
+            }
+
+            function setupReadMode() {
+                generateHive(false); 
+                hiveContainer.querySelectorAll('.hexagon').forEach(hex => {
+                    hex.classList.remove('is-flipped', 'matched');
+                    hex.onclick = () => hex.classList.toggle('is-flipped');
+                    hex.draggable = false;
+                });
+
+                // Ensure correct layout for read mode
+                mainContent.insertBefore(hivePanel, descriptionsPanel); // Hive first
+                mainContent.classList.remove('flex-col-reverse');
+                mainContent.classList.add('md:flex-row');
+
+
+                descriptionsPanel.classList.add('hidden');
+                descriptionsPanel.classList.remove('flex');
+                descriptionsPanel.style.height = ''; 
+                hivePanel.classList.remove('md:w-3/4');
+                hivePanel.classList.add('w-full');
+                
+                gameStateDiv.classList.add('hidden');
+                readModeBtn.style.backgroundColor = 'var(--color-button-primary-bg)';
+                readModeBtn.style.color = 'var(--color-button-primary-text)';
+                gameModeBtn.style.backgroundColor = 'var(--color-button-secondary-bg)';
+                gameModeBtn.style.color = 'var(--color-button-secondary-text)';
+                showMessage('Click on a tile to flip it!', 5000);
+            }
+
+            function setupGameMode() {
+                resetGame(); 
+                
+                // On mobile, stack descriptions on top. On desktop, side-by-side.
+                if (window.innerWidth < 768) {
+                    mainContent.insertBefore(descriptionsPanel, hivePanel);
+                    mainContent.classList.remove('md:flex-row', 'flex-col-reverse');
+                } else {
+                    mainContent.insertBefore(descriptionsPanel, hivePanel); // Keep description panel first in DOM for consistency
+                    mainContent.classList.add('md:flex-row');
+                }
+
+                descriptionsPanel.classList.remove('hidden');
+                descriptionsPanel.classList.add('flex');
+                hivePanel.classList.remove('w-full');
+                hivePanel.classList.add('md:w-3/4');
+
+                gameStateDiv.classList.remove('hidden');
+
+                gameModeBtn.style.backgroundColor = 'var(--color-button-primary-bg)';
+                gameModeBtn.style.color = 'var(--color-button-primary-text)';
+                readModeBtn.style.backgroundColor = 'var(--color-button-secondary-bg)';
+                readModeBtn.style.color = 'var(--color-button-secondary-text)';
+                
+                showMessage('Drag a description to its matching skill tile!', 5000);
+                
+                adjustDescriptionPanelHeight();
+            }
+
+            function generateDescriptionCards() {
+                descriptionsContainer.innerHTML = '';
+                const shuffledCaps = [...capabilities].sort(() => Math.random() - 0.5);
+                shuffledCaps.forEach(cap => {
+                    const card = document.createElement('div');
+                    card.id = `desc-${cap.id}`;
+                    card.className = 'description-card p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 text-sm flex-shrink-0';
+                    card.textContent = cap.description;
+                    card.draggable = true;
+                    addDragHandlers(card, cap.id);
+                    descriptionsContainer.appendChild(card);
+                });
+            }
+
+            function addDragHandlers(card, id) {
+                card.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', id);
+                    e.target.classList.add('opacity-50');
+                });
+                card.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('opacity-50');
+                });
+            }
+
+            function addDropHandlers(hex) {
+                 hex.addEventListener('dragover', (e) => {
+                    e.preventDefault(); 
+                    if (!hex.classList.contains('matched')) {
+                       hex.classList.add('drag-over');
+                    }
+                });
+                hex.addEventListener('dragleave', () => {
+                    hex.classList.remove('drag-over');
+                });
+                hex.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    hex.classList.remove('drag-over');
+                    if(hex.classList.contains('matched')) return;
+
+                    const droppedId = e.dataTransfer.getData('text/plain');
+                    const targetId = hex.dataset.id;
+
+                    if (droppedId === targetId) {
+                        handleCorrectDrop(hex, droppedId);
+                    } else {
+                        handleIncorrectDrop(hex);
+                    }
+                });
+            }
+
+            function handleCorrectDrop(hex, id) {
+                hex.classList.add('correct-drop', 'matched', 'is-flipped');
+                hex.classList.remove('game-mode-hex');
+                hex.classList.add(hex.dataset.color, hex.dataset.textColor);
+                
+                const backSide = hex.querySelector('.hexagon-back');
+                if (backSide) {
+                    backSide.classList.add(hex.dataset.color, hex.dataset.textColor);
+                }
+
+                hex.draggable = false;
+                
+                const matchedCard = document.getElementById(`desc-${id}`);
+                if(matchedCard) {
+                    matchedCard.classList.add('hidden');
+                }
+
+                score += 10;
+                matchedCount++;
+                scoreSpan.textContent = score;
+                showMessage('Great match!', 2000);
+
+                if(matchedCount === capabilities.length) {
+                    showMessage('Congratulations! You matched all the skills!', 10000);
+                }
+
+                setTimeout(() => hex.classList.remove('correct-drop'), 700);
+            }
+
+            function handleIncorrectDrop(hex) {
+                hex.classList.add('incorrect-drop');
+                showMessage('Not quite, try another!', 2000);
+                setTimeout(() => hex.classList.remove('incorrect-drop'), 700);
+            }
+            
+            function resetGame() {
+                score = 0;
+                matchedCount = 0;
+                scoreSpan.textContent = score;
+                generateHive(true); 
+                
+                hiveContainer.querySelectorAll('.hexagon').forEach(hex => {
+                    hex.classList.remove('is-flipped', 'matched');
+                    hex.onclick = null; 
+                    addDropHandlers(hex);
+                });
+                generateDescriptionCards();
+                showMessage('Game reset! Let\'s play again.', 3000);
+            }
+
+            function setMode(mode) {
+                currentMode = mode;
+                if(mode === 'read') {
+                    setupReadMode();
+                } else {
+                    setupGameMode();
+                }
+            }
+            
+            let messageTimeout;
+            function showMessage(text, duration) {
+                clearTimeout(messageTimeout);
+                messageBox.textContent = text;
+                messageBox.classList.remove('opacity-0');
+                messageTimeout = setTimeout(() => {
+                    messageBox.classList.add('opacity-0');
+                }, duration);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
